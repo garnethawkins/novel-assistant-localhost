@@ -1,0 +1,784 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Save the Cat! Novel Writer</title>
+    <style>
+        /* Basic CSS for readability - you'd expand this greatly */
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f4f4f4;
+            color: #333;
+        }
+
+        h1,
+        h2 {
+            color: #2c3e50;
+        }
+
+        #app-container {
+            display: flex;
+            gap: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease-in-out;
+            /* Smooth transition for layout changes */
+        }
+
+        #beats-sidebar {
+            flex: 1;
+            min-width: 250px;
+            max-width: 300px;
+            border-right: 1px solid #eee;
+            padding-right: 20px;
+            box-sizing: border-box;
+            /* Ensures padding is included in width */
+            transition: all 0.3s ease-in-out;
+            /* Smooth transition for sidebar itself */
+            overflow: hidden;
+            /* Hide overflow when collapsed */
+        }
+
+        #beats-sidebar.collapsed {
+            min-width: 50px;
+            /* Smaller width when collapsed, just showing the button */
+            max-width: 50px;
+            padding-right: 0;
+            border-right: none;
+        }
+
+        #beats-sidebar.collapsed #beats-content {
+            display: none;
+            /* Hide the actual content */
+        }
+
+        #chapter-editor {
+            flex: 3;
+            padding-left: 20px;
+            transition: all 0.3s ease-in-out;
+        }
+
+        #beats-sidebar.collapsed+#chapter-editor {
+            /* Adjust editor when sidebar is collapsed */
+            padding-left: 0px;
+            /* Remove left padding if no sidebar */
+        }
+
+        .beat-item {
+            padding: 8px 0;
+            cursor: pointer;
+            border-bottom: 1px dashed #eee;
+            transition: background-color 0.2s;
+        }
+
+        .beat-item:last-child {
+            border-bottom: none;
+        }
+
+        .beat-item:hover {
+            background-color: #e6f7ff;
+        }
+
+        .beat-item.active {
+            font-weight: bold;
+            color: #007bff;
+        }
+
+        /* New styles for sub-beats */
+        .sub-beat-list {
+            list-style: none;
+            padding-left: 15px;
+            /* Indent sub-beats */
+            margin-top: 5px;
+            margin-bottom: 5px;
+            border-left: 2px solid #ddd;
+        }
+
+        .sub-beat-item {
+            padding: 5px 0;
+            cursor: pointer;
+            font-size: 0.95em;
+            color: #555;
+            transition: background-color 0.2s;
+        }
+
+        .sub-beat-item:hover {
+            background-color: #f0f8ff;
+        }
+
+        .sub-beat-item.active {
+            font-weight: bold;
+            color: #0056b3;
+        }
+
+
+        textarea {
+            width: 100%;
+            min-height: 300px;
+            border: 1px solid #ccc;
+            padding: 10px;
+            font-size: 1em;
+            resize: vertical;
+            box-sizing: border-box;
+            /* Include padding in width */
+            margin-bottom: 10px;
+        }
+
+        input[type="text"],
+        select {
+            /* Added select here */
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 10px;
+            border: 1px solid #ccc;
+            box-sizing: border-box;
+        }
+
+        button {
+            background-color: #007bff;
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1em;
+            transition: background-color 0.2s;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        #save-status {
+            margin-top: 10px;
+            font-size: 0.9em;
+            color: #555;
+        }
+
+        .beat-header {
+            margin-bottom: 5px;
+            font-size: 1.1em;
+            color: #007bff;
+        }
+
+        .beat-description {
+            font-size: 0.9em;
+            color: #666;
+            margin-bottom: 10px;
+        }
+
+        #toggle-beats-button {
+            background-color: #6c757d;
+            /* A neutral color */
+            margin-bottom: 15px;
+            width: 100%;
+            /* Make it span the full width of the sidebar when visible */
+            text-align: center;
+        }
+
+        #beats-sidebar.collapsed #toggle-beats-button {
+            width: auto;
+            /* Allow button to shrink when collapsed */
+            padding: 10px;
+            /* Adjust padding for a square look */
+        }
+
+        #genre-selection-container {
+            margin-bottom: 20px;
+            padding: 15px;
+            background-color: #e9ecef;
+            border-radius: 5px;
+        }
+
+        #word-count-estimates {
+            margin-top: 15px;
+            padding: 10px;
+            border: 1px solid #ced4da;
+            border-radius: 5px;
+            background-color: #f8f9fa;
+            font-size: 0.9em;
+        }
+
+        /* Hide inputs for main beat if a sub-beat is selected, show guidance */
+        .hide-inputs .input-fields-group {
+            display: none;
+        }
+
+        #sub-beat-guidance {
+            padding: 15px;
+            background-color: #e0f7fa;
+            border-left: 5px solid #00bcd4;
+            margin-bottom: 15px;
+            font-style: italic;
+            color: #007788;
+        }
+
+
+        /* Word count display styling */
+        #word-count-display {
+            margin-top: -5px;
+            margin-bottom: 10px;
+            font-size: 0.9em;
+            font-weight: bold;
+        }
+
+        .word-count-red {
+            color: #dc3545;
+            /* Bootstrap danger red */
+        }
+
+        .word-count-orange {
+            color: #fd7e14;
+            /* Bootstrap warning orange */
+        }
+
+        .word-count-green {
+            color: #28a745;
+            /* Bootstrap success green */
+        }
+
+        .sub-beat-example {
+            font-style: italic;
+            color: #4a4a4a;
+            margin-top: 5px;
+            padding-left: 10px;
+            border-left: 2px solid #b3e0ff;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Save the Cat! Novel Writer</h1>
+
+    <div id="app-container">
+        <div id="beats-sidebar">
+            <button id="toggle-beats-button">Collapse Beats</button>
+            <div id="beats-content">
+                <h2>The 15 Beats</h2>
+                <ul id="beat-list">
+                </ul>
+            </div>
+        </div>
+
+        <div id="chapter-editor">
+            <div id="genre-selection-container">
+                <label for="genre-select">Select Your Novel's Genre:</label>
+                <select id="genre-select">
+                    <option value="default">Select a Genre</option>
+                    <option value="fantasy-sci-fi">Fantasy / Sci-Fi</option>
+                    <option value="mystery-thriller">Mystery / Thriller</option>
+                    <option value="literary-fiction">Literary Fiction</option>
+                    <option value="romance">Romance</option>
+                    <option value="young-adult">Young Adult (YA)</option>
+                    <option value="middle-grade">Middle Grade</option>
+                </select>
+                <div id="word-count-estimates">
+                    <p>Select a genre to see estimated word counts.</p>
+                </div>
+            </div>
+
+            <h2 id="current-beat-title">Select a Beat to Start Writing</h2>
+            <p id="current-beat-description"></p>
+            <p id="current-beat-example" class="sub-beat-example" style="display: none;"></p>
+
+
+            <div id="chapter-input-area">
+                <div id="sub-beat-guidance" style="display: none;">
+                    Please select a sub-beat from the sidebar to enter your notes for this section.
+                </div>
+
+                <div class="input-fields-group">
+                    <h3>Your Chapter/Scene Notes:</h3>
+                    <label for="chapter-title">Chapter/Scene Title:</label>
+                    <input type="text" id="chapter-title" placeholder="e.g., Chapter 1: Meeting the Hero">
+
+                    <label for="chapter-content">Content:</label>
+                    <textarea id="chapter-content"
+                        placeholder="Write your chapter summary, scene notes, or even rough draft here..."></textarea>
+                    <div id="word-count-display">Word Count: 0</div>
+
+                    <button id="save-button">Save Progress</button>
+                    <div id="save-status"></div>
+                </div>
+            </div>
+
+
+            <hr>
+            <h3>Global Novel Notes:</h3>
+            <textarea id="global-notes"
+                placeholder="Keep overall novel notes, character bios, world-building, etc."></textarea>
+            <button id="save-global-notes-button">Save Global Notes</button>
+            <div id="global-save-status"></div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const beatsData = [
+                {
+                    id: 'opening-image', name: '1. Opening Image (0-1%)', description: 'A snapshot of the hero\'s world at the beginning of the story, warts and all.',
+                    subBeats: [
+                        { id: 'oi-visual', name: 'Visual Snapshot', description: 'The very first image the audience sees, setting the tone, mood, and genre. It reflects the protagonist\'s starting world.', example: 'A dystopian city skyline, choked by smog, with a lone figure staring out from a tiny apartment window.' },
+                        { id: 'oi-problem', name: 'Problem Revealed', description: 'A subtle hint or demonstration of the protagonist\'s core flaw or the central problem of their current life.', example: 'The protagonist meticulously organizes their sparse belongings, revealing an obsessive need for control in a chaotic world.' },
+                        { id: 'oi-theme', name: 'Theme Foreshadowed', description: 'A line of dialogue or a symbolic image that quietly introduces the story\'s main theme, though the protagonist may not recognize its significance yet.', example: 'A street preacher shouts, "True freedom comes from letting go!" while the protagonist rushes past, late for their mundane job.' }
+                    ]
+                },
+                {
+                    id: 'set-up', name: '2. Set-up (1-10%)', description: 'Introduce the hero\'s flawed world, their tics, and what needs fixing.',
+                    subBeats: [
+                        { id: 'su-stasis', name: 'Stasis = Death', description: 'Show how the protagonist\'s current life, despite its comforts or routines, is ultimately unsustainable, unfulfilling, or leading to stagnation.', example: 'The protagonist, a talented artist, works a soul-crushing corporate job, their easel gathering dust in the corner.' },
+                        { id: 'su-cast', name: 'Introduce Supporting Cast', description: 'Introduce key supporting characters who will play significant roles, especially those connected to the protagonist\'s current world and flaws.', example: 'Meet the protagonist\'s well-meaning but overbearing family, who constantly push them towards a path they don\'t want.' },
+                        { id: 'su-external-want', name: 'External Want', description: 'Clearly define what the protagonist *consciously* believes they want or needs to achieve. This is often superficial or a distraction from their true need.', example: 'The protagonist desperately wants a promotion at their unfulfilling job, believing it will bring happiness.' },
+                        { id: 'su-internal-need', name: 'Internal Need (Hidden)', description: 'Subtly reveal the deeper, unconscious truth of what the protagonist *truly* needs to learn or change about themselves, often tied to the story\'s theme.', example: 'Through their interactions, it becomes clear the protagonist actually needs to find courage to pursue their artistic passion, not a promotion.' }
+                    ]
+                },
+                {
+                    id: 'theme-stated', name: '3. Theme Stated (5%)', description: 'Someone (not the hero) offers advice that is the theme of the story.',
+                    subBeats: [
+                        { id: 'ts-dialogue', name: 'Dialogue Hint', description: 'A character, often a mentor figure or even a seemingly minor character, offers a piece of advice or makes a statement that is the thematic truth of the story. The protagonist usually dismisses it.', example: 'An old librarian tells the protagonist, "You can\'t truly help others until you help yourself first," which the protagonist shrugs off.' },
+                        { id: 'ts-opposing', name: 'Opposing Viewpoint', description: 'Briefly introduce a character or situation that embodies the antithesis of the theme, setting up the thematic conflict the protagonist will face.', example: 'The protagonist observes a manipulative colleague who thrives by taking advantage of others, unknowingly mirroring a flaw within themselves.' }
+                    ]
+                },
+                {
+                    id: 'catalyst', name: '4. Catalyst (10%)', description: 'The inciting incident that kicks off the adventure.',
+                    subBeats: [
+                        { id: 'c-disruption', name: 'Disruption', description: 'A clear, undeniable event that shatters the protagonist\'s ordinary world, forcing them to react.', example: 'A mysterious letter arrives, inviting the protagonist to an unknown inheritance in a distant land.' },
+                        { id: 'c-irreversible', name: 'Irreversible Change', description: 'The catalyst is significant enough that the protagonist cannot simply ignore it and return to their old life. Consequences are now in motion.', example: 'Their apartment building is condemned, leaving the protagonist homeless and with no choice but to pursue the mysterious inheritance.' },
+                        { id: 'c-problem-opportunity', name: 'New Problem/Opportunity', description: 'The catalyst presents a new, compelling problem to solve, a challenge to overcome, or an enticing opportunity too good to refuse.', example: 'The inheritance comes with a dangerous condition: they must retrieve a lost artifact, or lose everything.' }
+                    ]
+                },
+                {
+                    id: 'debate', name: '5. Debate (10-20%)', description: 'The hero ponders the choice to accept the call to adventure.',
+                    subBeats: [
+                        { id: 'd-introspection', name: 'Internal Monologue/Reflection', description: 'The protagonist struggles internally with the decision to engage with the catalyst. Show their fears, doubts, and the pros and cons of moving forward.', example: 'The protagonist paces, weighing the risks of the quest against the utter desolation of their current life. "Is it worth it? Can I even do this?"' },
+                        { id: 'd-obstacles', name: 'External Obstacles/Warnings', description: 'Other characters (friends, family, or antagonists) may warn the protagonist against pursuing the adventure, or external circumstances create resistance.', example: 'A worried friend tries to convince the protagonist that the inheritance is a scam and too dangerous.' },
+                        { id: 'd-test-waters', name: 'Testing the Waters', description: 'The protagonist might take a small, relatively safe step towards the new world, a "try-out" that solidifies their commitment or reveals more about the challenge.', example: 'The protagonist researches the artifact, discovering ancient legends that both thrill and terrify them.' }
+                    ]
+                },
+                {
+                    id: 'break-into-two', name: '6. Break into Two (20%)', description: 'The hero commits to the new world/adventure, crossing the threshold.',
+                    subBeats: [
+                        { id: 'b2-commitment', name: 'Commitment', description: 'The protagonist makes a definitive, active choice to pursue the adventure. There\'s no turning back now.', example: 'The protagonist buys a one-way ticket to the distant land, leaving their old life behind.' },
+                        { id: 'b2-threshold', name: 'Crossing the Threshold', description: 'The protagonist physically or metaphorically enters the "new world" of the story, leaving the familiar behind. This often involves a literal journey.', example: 'They step off the boat onto the shores of the mysterious, ancient island, the jungle teeming with unknown sounds.' },
+                        { id: 'b2-new-goal', name: 'New Goal (Act Two Goal)', description: 'A clear, specific, and external goal for the protagonist to achieve within Act Two, often directly related to the catalyst.', example: 'Their new goal is to locate the lost Temple of Eldoria before the rising of the Blood Moon.' }
+                    ]
+                },
+                {
+                    id: 'b-story', name: '7. B Story (22%)', description: 'A secondary storyline, often involving a mentor or love interest, that carries the theme.',
+                    subBeats: [
+                        { id: 'bs-relationship', name: 'New Relationship', description: 'Introduction of the B Story character(s) and the beginning of their bond or dynamic with the protagonist. This relationship will serve a thematic purpose.', example: 'The protagonist meets a cynical but experienced treasure hunter on the island, who initially offers unwanted advice.' },
+                        { id: 'bs-thematic', name: 'Thematic Reinforcement', description: 'The B Story character or their experiences subtly reinforce the story\'s theme, often in a way the protagonist needs to hear or see, but isn\'t ready for yet.', example: 'The treasure hunter shares a story about how his past obsession cost him everything, reflecting the protagonist\'s own potential downfall.' },
+                        { id: 'bs-emotional', name: 'Emotional Arc', description: 'This subplot develops in parallel with the main plot, adding emotional depth and often providing a different kind of conflict or support for the protagonist.', example: 'Despite their initial friction, a reluctant camaraderie begins to form between the protagonist and the treasure hunter.' }
+                    ]
+                },
+                {
+                    id: 'fun-and-games', name: '8. Fun and Games (20-50%)', description: 'The promise of the premise: what the audience came to see. Hero exploring the new world.',
+                    subBeats: [
+                        { id: 'fg-exploration', name: 'Exploration of the New World', description: 'The protagonist (and audience) get to experience the new world, its rules, characters, and challenges. This is where the unique premise truly shines.', example: 'The protagonist navigates ancient booby-trapped ruins, encounters fantastical creatures, and learns about the island\'s forgotten magic.' },
+                        { id: 'fg-early', name: 'Early Successes/Failures', description: 'Show both the initial triumphs and minor setbacks, illustrating the learning curve of the new world and their capabilities within it.', example: 'They successfully decode an ancient riddle, but then narrowly escape a crumbling trap, realizing the true dangers.' },
+                        { id: 'fg-stakes', name: 'Raising the Stakes (Subtly)', description: 'While generally "fun," the underlying conflict or threat should be subtly building, with glimpses of the antagonist\'s power or the escalating danger.', example: 'Rumors of a rival expedition, also seeking the artifact, begin to circulate, adding a sense of urgency.' }
+                    ]
+                },
+                {
+                    id: 'midpoint', name: '9. Midpoint (50%)', description: 'A false victory or false defeat. The stakes are raised, and the clock starts ticking.',
+                    subBeats: [
+                        { id: 'mp-revelation', name: 'Revelation/Twist', description: 'A major turning point where new information is revealed, a crucial twist occurs, or the protagonist gains a critical understanding. This changes their approach.', example: 'The protagonist discovers the artifact isn\'t just a treasure, but a key to unleashing an ancient evil.' },
+                        { id: 'mp-stakes-increase', name: 'Increased Stakes', description: 'The consequences of failure become much higher and more personal. What was at risk is now magnified.', example: 'The Blood Moon is revealed to be tomorrow night, not next week, drastically shortening their timeline.' },
+                        { id: 'mp-shift', name: 'Shift in Goal/Understanding', description: 'The protagonist\'s initial Act Two goal may change, or they gain a deeper understanding of the true challenge and their role in it.', example: 'The goal shifts from simply finding the artifact to preventing the evil from being unleashed, requiring them to protect it or destroy it.' },
+                        { id: 'mp-ticking-clock', name: 'Ticking Clock (Optional)', description: 'A deadline or time limit is often introduced or reinforced, creating immense pressure and urgency for the second half of the story.', example: 'The Blood Moon\'s imminent arrival creates a race against time, making every decision critical.' }
+                    ]
+                },
+                {
+                    id: 'bad-guys-close-in', name: '10. Bad Guys Close In (50-75%)', description: 'The external and internal forces working against the hero escalate.',
+                    subBeats: [
+                        { id: 'bgci-pressure', name: 'Mounting Pressure', description: 'The antagonist\'s actions become more direct, effective, and oppressive. They are gaining the upper hand.', example: 'The rival expedition, led by a ruthless villain, actively hunts the protagonist, ambushing them at every turn.' },
+                        { id: 'bgci-setbacks', name: 'Setbacks and Failures', description: 'The protagonist faces increasing difficulties, defeats, and losses. Their original plan starts to unravel.', example: 'They lose a vital map, suffer injuries, and realize some allies cannot be trusted.' },
+                        { id: 'bgci-internal', name: 'Internal Conflict Intensifies', description: 'The external pressure exacerbates the protagonist\'s core flaw or unresolved internal issues, pushing them to their breaking point.', example: 'The protagonist\'s self-doubt paralyzes them after a major failure, making them question their ability to continue.' },
+                        { id: 'bgci-strain', name: 'Relationship Strain', description: 'Relationships, especially the B Story, are tested under pressure. Trust erodes, and conflicts arise between allies.', example: 'The treasure hunter loses faith in the protagonist, leading to a heated argument and a temporary parting of ways.' }
+                    ]
+                },
+                {
+                    id: 'all-is-lost', name: '11. All Is Lost (75%)', description: 'The lowest point for the hero. False victory leads to failure, false defeat to hope.',
+                    subBeats: [
+                        { id: 'ail-catastrophe', name: 'Catastrophic Failure', description: 'A major, seemingly insurmountable defeat or loss. The protagonist\'s external goal appears utterly lost.', example: 'The villain acquires the artifact, and the protagonist watches, powerless, as the ancient evil begins to awaken.' },
+                        { id: 'ail-rock-bottom', name: 'Emotional Rock Bottom', description: 'The protagonist experiences deep despair, doubt, and hopelessness. They have truly hit their lowest point.', example: 'Hiding in a ruined temple, the protagonist feels utter despair, believing all is lost and their journey was a foolish mistake.' },
+                        { id: 'ail-isolation', name: 'Isolation', description: 'The protagonist feels completely alone. Allies may be gone, trust broken, or they are physically isolated from help.', example: 'The treasure hunter is captured, leaving the protagonist entirely alone to face the imminent doom.' }
+                    ]
+                },
+                {
+                    id: 'dark-night-of-the-soul', name: '12. Dark Night of the Soul (75-80%)', description: 'Hero has given up. They reflect on their journey and find the truth of the theme.',
+                    subBeats: [
+                        { id: 'dns-introspection', name: 'Introspection', description: 'Following the "All Is Lost" moment, the protagonist engages in deep self-reflection, processing their failures and the journey\'s true meaning.', example: 'The protagonist recalls the librarian\'s advice ("help yourself first") and realizes their relentless pursuit of external validation has blinded them.' },
+                        { id: 'dns-breakthrough', name: 'Thematic Breakthrough', description: 'A moment of clarity where the protagonist understands the story\'s theme on a deeper, personal level. They realize what they *truly* need to change within themselves.', example: 'They realize true courage isn\'t about brute force, but about self-acceptance and fighting for what\'s right, regardless of personal cost.' },
+                        { id: 'dns-rebirth', name: 'Rebirth/Transformation (Pre-Action)', description: 'The seeds of the protagonist\'s true transformation are sown. They are not yet fully changed, but the understanding has shifted their perspective, leading to a new resolve.', example: 'A quiet resolve settles over the protagonist. They stand up, ready to face the world not for external gain, but for an internal conviction.' }
+                    ]
+                },
+                {
+                    id: 'break-into-three', name: '13. Break into Three (80%)', description: 'The hero solves their inner conflict and commits to the final battle with a new plan.',
+                    subBeats: [
+                        { id: 'b3-solution', name: 'New Solution/Strategy', description: 'Based on their thematic breakthrough, the protagonist devises a new, often unexpected, plan to confront the antagonist and achieve their goal. This plan incorporates what they\'ve learned internally.', example: 'Instead of fighting the villain head-on, the protagonist plans to exploit a weakness in the ancient evil\'s summoning ritual, a weakness only they, with their new understanding, could perceive.' },
+                        { id: 'b3-integration', name: 'Integration of A and B Story', description: 'Elements from the B story often provide the key or the final push needed to solve the A story\'s main conflict. The B story character might return or their lessons prove vital.', example: 'The treasure hunter, having also found new resolve, returns to aid the protagonist, bringing a crucial piece of knowledge or equipment learned from their own journey.' },
+                        { id: 'b3-determination', name: 'Renewed Determination', description: 'The protagonist is re-energized and fully committed. They are no longer the same flawed person from Act One; they are ready for the final confrontation, armed with new insight and strength.', example: 'With newfound purpose, the protagonist declares, "We can still stop this. Let\'s go."' }
+                    ]
+                },
+                {
+                    id: 'finale', name: '14. Finale (80-99%)', description: 'The hero applies the lessons learned, defeats the antagonist, and changes the world.',
+                    subBeats: [
+                        { id: 'f-execution', name: 'Execution of Plan', description: 'The protagonist puts their new strategy into action, demonstrating their growth by overcoming challenges with their newfound wisdom and skills.', example: 'The protagonist and treasure hunter work together, bypassing traps and outsmarting the villain\'s minions with cunning rather than brute force.' },
+                        { id: 'f-confrontation', name: 'High-Stakes Confrontation', description: 'The ultimate showdown with the antagonistic force. This is the culmination of the external conflict.', example: 'The protagonist faces the villain at the heart of the ritual, engaged in a battle of wits and strength as the Blood Moon rises.' },
+                        { id: 'f-demonstration', name: 'Demonstration of Growth', description: 'The protagonist uses their newly acquired internal and external skills and understanding to overcome the challenge, proving they have truly changed.', example: 'Instead of seeking glory, the protagonist sacrifices their chance at fame to protect the innocent, reflecting their internal need for true purpose.' },
+                        { id: 'f-sacrifice', name: 'Sacrifice (Optional)', description: 'The protagonist might make a significant, selfless sacrifice (physical, emotional, or personal belief) to achieve victory, proving their thematic growth.', example: 'The protagonist chooses to destroy the artifact, losing the inheritance but saving the world from the ancient evil.' },
+                        { id: 'f-b-story', name: 'Resolution of B Story', description: 'The B Story\'s arc is often resolved in conjunction with the main plot, showing the impact of the relationship and its thematic resonance.', example: 'The treasure hunter, seeing the protagonist\'s selfless act, finally makes peace with his own past and chooses a less destructive path.' }
+                    ]
+                },
+                {
+                    id: 'final-image', name: '15. Final Image (99-100%)', description: 'A mirror to the opening image, showing how much the hero and their world have changed.',
+                    subBeats: [
+                        { id: 'fi-parallel', name: 'Visual Parallel', description: 'A visual that directly relates to the opening image but clearly shows the transformation of the protagonist and their world due to the journey.', example: 'The protagonist stands on a rebuilt city rooftop, looking at a clean skyline. They are no longer alone, but surrounded by new friends, smiling.' },
+                        { id: 'fi-new-status', name: 'New Status Quo', description: 'The protagonist\'s new normal, reflecting their growth and the story\'s resolution. It shows the world, and the protagonist\'s place in it, is fundamentally different and improved.', example: 'The protagonist, now a community leader, teaches children about sustainable living, having found their true calling.' },
+                        { id: 'fi-thematic', name: 'Thematic Resolution', description: 'A final visual or moment that powerfully reinforces the story\'s core theme, leaving the audience with the lasting message.', example: 'A single, flourishing plant grows from the cracked pavement, symbolizing hope and renewal where once there was only decay.' }
+                    ]
+                }
+            ];
+
+            // --- New Genre and Word Count Data ---
+            const genreWordCounts = {
+                'fantasy-sci-fi': { min: 100000, max: 150000, description: 'Often longer, due to extensive world-building.' },
+                'mystery-thriller': { min: 80000, max: 100000, description: 'Typically focused on plot and suspense.' },
+                'literary-fiction': { min: 60000, max: 120000, description: 'Can have a broader range, depending on focus.' },
+                'romance': { min: 50000, max: 90000, description: 'Often on the shorter side, focusing on character relationships.' },
+                'young-adult': { min: 50000, max: 80000, description: 'Aimed at a younger audience, generally more concise.' },
+                'middle-grade': { min: 20000, max: 55000, description: 'Significantly shorter, suitable for younger readers.' },
+                'default': { min: 70000, max: 120000, description: 'General average for most adult novels.' } // Default if no genre is selected
+            };
+            const NUMBER_OF_MAIN_BEATS = 15; // Save the Cat always has 15 main beats
+
+            const beatList = document.getElementById('beat-list');
+            const currentBeatTitle = document.getElementById('current-beat-title');
+            const currentBeatDescription = document.getElementById('current-beat-description');
+            const currentBeatExample = document.getElementById('current-beat-example'); /* New element */
+            const chapterTitleInput = document.getElementById('chapter-title');
+            const chapterContentTextarea = document.getElementById('chapter-content');
+            const saveButton = document.getElementById('save-button');
+            const saveStatusDiv = document.getElementById('save-status');
+            const globalNotesTextarea = document.getElementById('global-notes');
+            const saveGlobalNotesButton = document.getElementById('save-global-notes-button');
+            const globalSaveStatusDiv = document.getElementById('global-save-status');
+            const chapterInputArea = document.getElementById('chapter-input-area');
+            const subBeatGuidance = document.getElementById('sub-beat-guidance'); // New guidance div
+            const inputFieldsGroup = chapterInputArea.querySelector('.input-fields-group'); // Group of input fields
+
+            const wordCountDisplay = document.getElementById('word-count-display'); // New element for word count
+
+            const beatsSidebar = document.getElementById('beats-sidebar');
+            const toggleBeatsButton = document.getElementById('toggle-beats-button');
+            const beatsContent = document.getElementById('beats-content');
+
+            // --- New elements ---
+            const genreSelect = document.getElementById('genre-select');
+            const wordCountEstimatesDiv = document.getElementById('word-count-estimates');
+
+
+            let currentSelectedBeat = { mainBeatId: null, subBeatId: null }; // Track both parent beat and selected sub-beat
+            let minWordsForCurrentSubBeat = 0; // Globally declared
+            let maxWordsForCurrentSubBeat = 0; // Globally declared
+
+
+            // --- Initialization: Load existing data and render beats ---
+
+            // Load global notes
+            const savedGlobalNotes = localStorage.getItem('novelGlobalNotes');
+            if (savedGlobalNotes) {
+                globalNotesTextarea.value = savedGlobalNotes;
+            }
+
+            // Load sidebar state
+            const isSidebarCollapsed = localStorage.getItem('isSidebarCollapsed') === 'true';
+            if (isSidebarCollapsed) {
+                beatsSidebar.classList.add('collapsed');
+                toggleBeatsButton.textContent = 'Expand Beats';
+            } else {
+                beatsSidebar.classList.remove('collapsed');
+                toggleBeatsButton.textContent = 'Collapse Beats';
+            }
+
+            // --- NEW ORDER: Populate beat list FIRST ---
+            beatsData.forEach(beat => {
+                const li = document.createElement('li');
+                li.classList.add('beat-item');
+                li.dataset.beatId = beat.id;
+                li.textContent = beat.name;
+                li.addEventListener('click', () => {
+                    if (beat.subBeats && beat.subBeats.length > 0) {
+                        selectBeat(beat.id, beat.subBeats[0].id);
+                    } else {
+                        selectBeat(beat.id, null);
+                    }
+                });
+                beatList.appendChild(li);
+
+                if (beat.subBeats && beat.subBeats.length > 0) {
+                    const subUl = document.createElement('ul');
+                    subUl.classList.add('sub-beat-list');
+                    beat.subBeats.forEach(subBeat => {
+                        const subLi = document.createElement('li');
+                        subLi.classList.add('sub-beat-item');
+                        subLi.dataset.beatId = beat.id;
+                        subLi.dataset.subBeatId = subBeat.id;
+                        subLi.textContent = subBeat.name;
+                        subLi.addEventListener('click', (e) => {
+                            e.stopPropagation();
+                            selectBeat(beat.id, subBeat.id);
+                        });
+                        subUl.appendChild(subLi);
+                    });
+                    li.appendChild(subUl);
+                }
+            });
+
+
+            // --- THEN: Load and set selected genre, and update estimates ---
+            const savedGenre = localStorage.getItem('selectedGenre');
+            if (savedGenre && genreWordCounts[savedGenre]) {
+                genreSelect.value = savedGenre;
+            } else {
+                genreSelect.value = 'default';
+            }
+            updateWordCountEstimates(); // Explicitly call to ensure estimates are shown based on selected genre
+
+
+            // --- THEN: Try to load the last active beat/sub-beat or select the first one ---
+            const lastActiveMainBeat = localStorage.getItem('lastActiveMainBeat');
+            const lastActiveSubBeat = localStorage.getItem('lastActiveSubBeat');
+
+            if (lastActiveMainBeat) {
+                selectBeat(lastActiveMainBeat, lastActiveSubBeat);
+            } else {
+                const firstBeat = beatsData[0];
+                if (firstBeat && firstBeat.subBeats && firstBeat.subBeats.length > 0) {
+                    selectBeat(firstBeat.id, firstBeat.subBeats[0].id);
+                } else if (firstBeat) {
+                    selectBeat(firstBeat.id, null);
+                }
+            }
+
+
+            // --- Functions ---
+
+            function selectBeat(mainBeatId, subBeatId) {
+                // Deselect previous active beat/sub-beat items
+                if (currentSelectedBeat.mainBeatId) {
+                    const prevMainBeatItem = document.querySelector(`.beat-item[data-beat-id="${currentSelectedBeat.mainBeatId}"]`);
+                    if (prevMainBeatItem) {
+                        prevMainBeatItem.classList.remove('active');
+                    }
+                }
+                if (currentSelectedBeat.subBeatId) {
+                    const prevSubBeatItem = document.querySelector(`.sub-beat-item[data-sub-beat-id="${currentSelectedBeat.subBeatId}"]`);
+                    if (prevSubBeatItem) {
+                        prevSubBeatItem.classList.remove('active');
+                    }
+                }
+
+                currentSelectedBeat = { mainBeatId: mainBeatId, subBeatId: subBeatId };
+                localStorage.setItem('lastActiveMainBeat', mainBeatId);
+                localStorage.setItem('lastActiveSubBeat', subBeatId);
+
+                // Highlight new active items
+                const activeMainBeatItem = document.querySelector(`.beat-item[data-beat-id="${mainBeatId}"]`);
+                if (activeMainBeatItem) {
+                    activeMainBeatItem.classList.add('active');
+                }
+                if (subBeatId) {
+                    const activeSubBeatItem = document.querySelector(`.sub-beat-item[data-sub-beat-id="${subBeatId}"]`);
+                    if (activeSubBeatItem) {
+                        activeSubBeatItem.classList.add('active');
+                        // Ensure parent main beat is also highlighted if a sub-beat is selected
+                        if (activeMainBeatItem) activeMainBeatItem.classList.add('active');
+                    }
+                    inputFieldsGroup.style.display = ''; // Show input fields
+                    subBeatGuidance.style.display = 'none'; // Hide guidance
+                } else {
+                    // No sub-beat selected, check if main beat has sub-beats
+                    const mainBeat = beatsData.find(b => b.id === mainBeatId);
+                    if (mainBeat && mainBeat.subBeats && mainBeat.subBeats.length > 0) {
+                        inputFieldsGroup.style.display = 'none'; // Hide input fields
+                        subBeatGuidance.style.display = ''; // Show guidance
+                    } else {
+                        inputFieldsGroup.style.display = ''; // Show input fields
+                        subBeatGuidance.style.display = 'none'; // Hide guidance
+                    }
+                }
+
+
+                const mainBeat = beatsData.find(b => b.id === mainBeatId);
+                if (mainBeat) {
+                    if (subBeatId) {
+                        const subBeat = mainBeat.subBeats.find(sb => sb.id === subBeatId);
+                        if (subBeat) {
+                            currentBeatTitle.textContent = `${mainBeat.name} - ${subBeat.name}`;
+                            currentBeatDescription.textContent = subBeat.description;
+                            currentBeatExample.textContent = `Example: ${subBeat.example}`; /* Display example */
+                            currentBeatExample.style.display = ''; /* Show example */
+                            loadChapterContent(mainBeatId, subBeatId);
+                        }
+                    } else {
+                        // If a main beat is selected directly (no sub-beat specific selection, or if a main beat without sub-beats is clicked)
+                        currentBeatTitle.textContent = mainBeat.name;
+                        currentBeatDescription.textContent = mainBeat.description;
+                        currentBeatExample.style.display = 'none'; /* Hide example for main beats without sub-beats */
+                        loadChapterContent(mainBeatId, null); // Load content for the main beat itself
+                    }
+                }
+                updateWordCountEstimates(); // Update estimates based on the selected beat/sub-beat context
+                updateWordCountDisplay(); // Update word count display on beat change
+            }
+
+            function loadChapterContent(mainBeatId, subBeatId) {
+                // Content is always saved/loaded based on the specific beat/sub-beat selected.
+                // If subBeatId is null, it means a main beat without sub-beats is selected.
+                const key = subBeatId ? `beatData-${mainBeatId}-${subBeatId}` : `beatData-${mainBeatId}-main`; // Added '-main' to distinguish main beat content key
+                const savedData = JSON.parse(localStorage.getItem(key) || '{}');
+                chapterTitleInput.value = savedData.title || '';
+                chapterContentTextarea.value = savedData.content || '';
+                saveStatusDiv.textContent = ''; // Clear status on load
+            }
+
+            function saveChapterContent() {
+                if (!currentSelectedBeat.mainBeatId) {
+                    saveStatusDiv.textContent = 'Please select a beat or sub-beat first.';
+                    return;
+                }
+
+                // If inputs are hidden, do not save
+                if (inputFieldsGroup.style.display === 'none') {
+                    saveStatusDiv.textContent = 'Select a sub-beat to enter notes.';
+                    return;
+                }
+
+
+                const key = currentSelectedBeat.subBeatId ?
+                    `beatData-${currentSelectedBeat.mainBeatId}-${currentSelectedBeat.subBeatId}` :
+                    `beatData-${currentSelectedBeat.mainBeatId}-main`; // Added '-main' to distinguish main beat content key
+
+                const dataToSave = {
+                    title: chapterTitleInput.value,
+                    content: chapterContentTextarea.value,
+                    timestamp: new Date().toLocaleString()
+                };
+                localStorage.setItem(key, JSON.stringify(dataToSave));
+                saveStatusDiv.textContent = `Saved: ${dataToSave.timestamp}`;
+            }
+
+            function saveGlobalNotes() {
+                const globalNotesContent = globalNotesTextarea.value;
+                localStorage.setItem('novelGlobalNotes', globalNotesContent);
+                globalSaveStatusDiv.textContent = `Global notes saved: ${new Date().toLocaleString()}`;
+            }
+
+            function toggleBeatsSidebar() {
+                beatsSidebar.classList.toggle('collapsed');
+                const isCollapsed = beatsSidebar.classList.contains('collapsed');
+                localStorage.setItem('isSidebarCollapsed', isCollapsed); // Save state
+
+                if (isCollapsed) {
+                    toggleBeatsButton.textContent = 'Expand Beats';
+                } else {
+                    toggleBeatsButton.textContent = 'Collapse Beats';
+                }
+            }
+
+            function getWordCount(text) {
+                if (!text) return 0;
+                // Regular expression to split by whitespace and count non-empty parts
+                const words = text.trim().split(/\s+/);
+                return words.length === 1 && words[0] === '' ? 0 : words.length;
+            }
+
+
+            function updateWordCountDisplay() {
+                const currentWordCount = getWordCount(chapterContentTextarea.value);
+                wordCountDisplay.textContent = `Word Count: ${currentWordCount}`;
+
+                // Remove existing color classes
+                wordCountDisplay.classList.remove('word-count-red', 'word-count-orange', 'word-count-green');
+
+                // Apply new color class based on thresholds, only if input fields are visible
+                // and if the min/max word counts have been properly set (i.e., not 0 from initial declaration)
+                if (inputFieldsGroup.style.display !== 'none' && minWordsForCurrentSubBeat > 0 && maxWordsForCurrentSubBeat > 0) {
+                    if (currentWordCount < minWordsForCurrentSubBeat) {
+                        wordCountDisplay.classList.add('word-count-red');
+                    } else if (currentWordCount > maxWordsForCurrentSubBeat) {
+                        wordCountDisplay.classList.add('word-count-orange');
+                    } else { // It's >= min and <= max
+                        wordCountDisplay.classList.add('word-count-green');
+                    }
+                }
+            }
+
+            function updateWordCountEstimates() {
+                const selectedGenre = genreSelect.value;
+                localStorage.setItem('selectedGenre', selectedGenre); // Save selected genre
+                const genreInfo = genreWordCounts[selectedGenre] || genreWordCounts['default']; // Fallback to default
+
+                const minTotal = genreInfo.min;
+                const maxTotal = genreInfo.max;
+                const description = genreInfo.description;
+
+                const minPerMainBeat = Math.round(minTotal / NUMBER_OF_MAIN_BEATS);
+                const maxPerMainBeat = Math.round(maxTotal / NUMBER_OF_MAIN_BEATS);
+
+                let subBeatEstimateHtml = '';
+                const currentMainBeat = beatsData.find(b => b.id === currentSelectedBeat.mainBeatId);
+
+                if (currentMainBeat && currentMainBeat.subBeats && currentMainBeat.subBeats.length > 0) {
+                    const numSubBeats = currentMainBeat.subBeats.length;
+                    minWordsForCurrentSubBeat = Math.round(minPerMainBeat / numSubBeats);
+                    maxWordsForCurrentSubBeat = Math.round(maxPerMainBeat / numSubBeats);
+                    subBeatEstimateHtml = `
+                        <p><strong>Estimated Words for This Main Beat (${currentMainBeat.name}):</strong> ${minPerMainBeat.toLocaleString()} - ${maxPerMainBeat.toLocaleString()} words</p>
+                        <p><strong>Estimated Words Per Sub-Beat (within this beat):</strong> ${minWordsForCurrentSubBeat.toLocaleString()} - ${maxWordsForCurrentSubBeat.toLocaleString()} words (distribute across ${numSubBeats} sub-beats)</p>
+                    `;
+                } else {
+                    minWordsForCurrentSubBeat = minPerMainBeat; // If no sub-beats, target is the main beat
+                    maxWordsForCurrentSubBeat = maxPerMainBeat;
+                    subBeatEstimateHtml = `
+                        <p><strong>Estimated Words Per Beat (average across all 15 main beats):</strong> ${minPerMainBeat.toLocaleString()} - ${maxPerMainBeat.toLocaleString()} words</p>
+                        <p>This main beat has no sub-beats to further divide the estimate.</p>
+                    `;
+                }
+
+                wordCountEstimatesDiv.innerHTML = `
+                    <p><strong>Total Novel Word Count Estimate:</strong> ${minTotal.toLocaleString()} - ${maxTotal.toLocaleString()} words</p>
+                    ${subBeatEstimateHtml}
+                    <p><em>${description}</em></p>
+                    <p>Remember, these are just estimates to guide you!</p>
+                `;
+
+                // Update the active word count display based on new estimates
+                updateWordCountDisplay();
+            }
+
+
+            // --- Event Listeners ---
+            saveButton.addEventListener('click', saveChapterContent);
+            saveGlobalNotesButton.addEventListener('click', saveGlobalNotes);
+            toggleBeatsButton.addEventListener('click', toggleBeatsSidebar);
+            genreSelect.addEventListener('change', updateWordCountEstimates); // Listen for genre changes
+
+            chapterTitleInput.addEventListener('input', saveChapterContent);
+            chapterContentTextarea.addEventListener('input', saveChapterContent);
+            chapterContentTextarea.addEventListener('input', updateWordCountDisplay); // Live word count update
+            globalNotesTextarea.addEventListener('input', saveGlobalNotes);
+        });
+    </script>
+</body>
+
+</html>
