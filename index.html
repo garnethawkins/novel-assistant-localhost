@@ -5,6 +5,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Save the Cat! Novel Writer</title>
+    <!-- Include Quill stylesheet -->
+    <link href="https://cdn.jsdelivr.net/npm/quill@2/dist/quill.snow.css" rel="stylesheet" />
     <style>
         /* Basic CSS for readability - you'd expand this greatly */
         body {
@@ -118,17 +120,19 @@
             color: #0056b3;
         }
 
-
-        textarea {
-            width: 100%;
-            min-height: 300px;
-            border: 1px solid #ccc;
-            padding: 10px;
-            font-size: 1em;
-            resize: vertical;
-            box-sizing: border-box;
-            /* Include padding in width */
+        /* Styles for Quill Editor */
+        #editor-container {
+            height: 300px;
+            /* Set a fixed height for the editor */
             margin-bottom: 10px;
+            border: 1px solid #ccc;
+            /* Ensure border is visible */
+        }
+
+        /* Adjust for word count display relative to Quill's toolbar */
+        .ql-toolbar.ql-snow+#word-count-display {
+            margin-top: 5px;
+            /* Add some space below the toolbar */
         }
 
         input[type="text"],
@@ -299,9 +303,33 @@
                     <label for="chapter-title">Chapter/Scene Title:</label>
                     <input type="text" id="chapter-title" placeholder="e.g., Chapter 1: Meeting the Hero">
 
-                    <label for="chapter-content">Content:</label>
-                    <textarea id="chapter-content"
-                        placeholder="Write your chapter summary, scene notes, or even rough draft here..."></textarea>
+                    <label>Content:</label>
+                    <div id="toolbar-container">
+                        <span class="ql-formats">
+                            <select class="ql-header">
+                                <option value="false"></option>
+                                <option value="1"></option>
+                                <option value="2"></option>
+                                <option value="3"></option>
+                            </select>
+                        </span>
+                        <span class="ql-formats">
+                            <button class="ql-bold"></button>
+                            <button class="ql-italic"></button>
+                            <button class="ql-underline"></button>
+                            <button class="ql-strike"></button>
+                        </span>
+                        <span class="ql-formats">
+                            <button class="ql-list" value="ordered"></button>
+                            <button class="ql-list" value="bullet"></button>
+                            <select class="ql-align"></select>
+                        </span>
+
+                        <span class="ql-formats">
+                            <select class="ql-color"></select> </span>
+                    </div>
+                    <div id="editor-container">
+                    </div>
                     <div id="word-count-display">Word Count: 0</div>
 
                     <button id="save-button">Save Progress</button>
@@ -318,6 +346,8 @@
             <div id="global-save-status"></div>
         </div>
     </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/quill@2/dist/quill.js"></script>
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
@@ -401,7 +431,7 @@
                         { id: 'bgci-pressure', name: 'Mounting Pressure', description: 'The antagonist\'s actions become more direct, effective, and oppressive. They are gaining the upper hand.', example: 'The rival expedition, led by a ruthless villain, actively hunts the protagonist, ambushing them at every turn.' },
                         { id: 'bgci-setbacks', name: 'Setbacks and Failures', description: 'The protagonist faces increasing difficulties, defeats, and losses. Their original plan starts to unravel.', example: 'They lose a vital map, suffer injuries, and realize some allies cannot be trusted.' },
                         { id: 'bgci-internal', name: 'Internal Conflict Intensifies', description: 'The external pressure exacerbates the protagonist\'s core flaw or unresolved internal issues, pushing them to their breaking point.', example: 'The protagonist\'s self-doubt paralyzes them after a major failure, making them question their ability to continue.' },
-                        { id: 'bgci-strain', name: 'Relationship Strain', description: 'Relationships, especially the B Story, are tested under pressure. Trust erodes, and conflicts arise between allies.', example: 'The treasure hunter loses faith in the protagonist, leading to a heated argument and a temporary parting of ways.' }
+                        { id: 'bgci-strain', name: 'Relationship Strain', description: 'The protagonist\'s self-doubt paralyzes them after a major failure, making them question their ability to continue.', example: 'The treasure hunter loses faith in the protagonist, leading to a heated argument and a temporary parting of ways.' }
                     ]
                 },
                 {
@@ -465,7 +495,7 @@
             const currentBeatDescription = document.getElementById('current-beat-description');
             const currentBeatExample = document.getElementById('current-beat-example'); /* New element */
             const chapterTitleInput = document.getElementById('chapter-title');
-            const chapterContentTextarea = document.getElementById('chapter-content');
+            // const chapterContentTextarea = document.getElementById('chapter-content'); // No longer needed directly
             const saveButton = document.getElementById('save-button');
             const saveStatusDiv = document.getElementById('save-status');
             const globalNotesTextarea = document.getElementById('global-notes');
@@ -490,6 +520,8 @@
             let minWordsForCurrentSubBeat = 0; // Globally declared
             let maxWordsForCurrentSubBeat = 0; // Globally declared
 
+            // NEW: Variable to hold Quill editor instance
+            let quill = null;
 
             // --- Initialization: Load existing data and render beats ---
 
@@ -509,7 +541,7 @@
                 toggleBeatsButton.textContent = 'Collapse Beats';
             }
 
-            // --- NEW ORDER: Populate beat list FIRST ---
+            // --- Populate beat list ---
             beatsData.forEach(beat => {
                 const li = document.createElement('li');
                 li.classList.add('beat-item');
@@ -543,8 +575,16 @@
                 }
             });
 
+            // Initialize Quill
+            quill = new Quill('#editor-container', {
+                modules: {
+                    toolbar: '#toolbar-container' // Link to your custom toolbar div
+                },
+                theme: 'snow', // Use 'snow' theme for a standard UI
+                placeholder: 'Write your chapter summary, scene notes, or even rough draft here...'
+            });
 
-            // --- THEN: Load and set selected genre, and update estimates ---
+            // --- Then: Load and set selected genre, and update estimates ---
             const savedGenre = localStorage.getItem('selectedGenre');
             if (savedGenre && genreWordCounts[savedGenre]) {
                 genreSelect.value = savedGenre;
@@ -554,10 +594,11 @@
             updateWordCountEstimates(); // Explicitly call to ensure estimates are shown based on selected genre
 
 
-            // --- THEN: Try to load the last active beat/sub-beat or select the first one ---
+            // --- Then: Try to load the last active beat/sub-beat or select the first one ---
             const lastActiveMainBeat = localStorage.getItem('lastActiveMainBeat');
             const lastActiveSubBeat = localStorage.getItem('lastActiveSubBeat');
 
+            // Load content AFTER Quill is initialized
             if (lastActiveMainBeat) {
                 selectBeat(lastActiveMainBeat, lastActiveSubBeat);
             } else {
@@ -642,12 +683,15 @@
             }
 
             function loadChapterContent(mainBeatId, subBeatId) {
-                // Content is always saved/loaded based on the specific beat/sub-beat selected.
-                // If subBeatId is null, it means a main beat without sub-beats is selected.
                 const key = subBeatId ? `beatData-${mainBeatId}-${subBeatId}` : `beatData-${mainBeatId}-main`; // Added '-main' to distinguish main beat content key
                 const savedData = JSON.parse(localStorage.getItem(key) || '{}');
                 chapterTitleInput.value = savedData.title || '';
-                chapterContentTextarea.value = savedData.content || '';
+
+                // Set Quill editor content (HTML)
+                if (quill) {
+                    quill.clipboard.dangerouslyPasteHTML(0, savedData.content || '');
+                }
+
                 saveStatusDiv.textContent = ''; // Clear status on load
             }
 
@@ -663,14 +707,16 @@
                     return;
                 }
 
-
                 const key = currentSelectedBeat.subBeatId ?
                     `beatData-${currentSelectedBeat.mainBeatId}-${currentSelectedBeat.subBeatId}` :
                     `beatData-${currentSelectedBeat.mainBeatId}-main`; // Added '-main' to distinguish main beat content key
 
+                // Get Quill editor content (HTML)
+                const contentToSave = quill ? quill.root.innerHTML : '';
+
                 const dataToSave = {
                     title: chapterTitleInput.value,
-                    content: chapterContentTextarea.value,
+                    content: contentToSave, // This will now be HTML
                     timestamp: new Date().toLocaleString()
                 };
                 localStorage.setItem(key, JSON.stringify(dataToSave));
@@ -695,16 +741,19 @@
                 }
             }
 
-            function getWordCount(text) {
-                if (!text) return 0;
+            function getWordCount() {
+                // To get plain text from Quill
+                if (!quill) return 0;
+                const plainText = quill.getText(); // Get plain text from Quill
+                if (!plainText) return 0;
                 // Regular expression to split by whitespace and count non-empty parts
-                const words = text.trim().split(/\s+/);
+                const words = plainText.trim().split(/\s+/);
                 return words.length === 1 && words[0] === '' ? 0 : words.length;
             }
 
 
             function updateWordCountDisplay() {
-                const currentWordCount = getWordCount(chapterContentTextarea.value);
+                const currentWordCount = getWordCount(); // No longer needs 'text' argument
                 wordCountDisplay.textContent = `Word Count: ${currentWordCount}`;
 
                 // Remove existing color classes
@@ -774,9 +823,17 @@
             genreSelect.addEventListener('change', updateWordCountEstimates); // Listen for genre changes
 
             chapterTitleInput.addEventListener('input', saveChapterContent);
-            chapterContentTextarea.addEventListener('input', saveChapterContent);
-            chapterContentTextarea.addEventListener('input', updateWordCountDisplay); // Live word count update
+            // chapterContentTextarea.addEventListener('input', saveChapterContent); // Replaced by Quill event
+            // chapterContentTextarea.addEventListener('input', updateWordCountDisplay); // Replaced by Quill event
             globalNotesTextarea.addEventListener('input', saveGlobalNotes);
+
+            // NEW: Listen to Quill's text-change event for auto-save and word count update
+            if (quill) {
+                quill.on('text-change', () => {
+                    saveChapterContent(); // Auto-save on content change
+                    updateWordCountDisplay(); // Update word count display
+                });
+            }
         });
     </script>
 </body>
