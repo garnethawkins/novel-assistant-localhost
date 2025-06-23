@@ -974,9 +974,9 @@
                     // Only update word count, auto-save is disabled
                     updateWordCountDisplay();
                     // AUTO-SAVE DISABLED FOR DEBUGGING:
-                    // if (source === 'user' && !isQuillLoading) {
-                    //     debouncedSaveChapterContent();
-                    // }
+                    if (source === 'user' && !isQuillLoading) {
+                        debouncedSaveChapterContent();
+                    }
                 });
             }
             globalNotesTextarea.addEventListener('input', saveGlobalNotes);
