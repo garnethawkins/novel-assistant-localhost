@@ -460,7 +460,9 @@
                     id: 'break-into-three', name: '13. Break into Three (80%)', description: 'The hero solves their inner conflict and commits to the final battle with a new plan.',
                     subBeats: [
                         { id: 'b3-solution', name: 'New Solution/Strategy', description: 'Based on their thematic breakthrough, the protagonist devises a new, often unexpected, plan to confront the antagonist and achieve their goal. This plan incorporates what they\'ve learned internally.', example: 'Instead of fighting the villain head-on, the protagonist plans to exploit a weakness in the ancient evil\'s summoning ritual, a weakness only they, with their new understanding, could perceive.' },
-                        { id: 'b3-integration', name: 'Integration of A and B Story', description: 'Elements from the B story often provide the key or the final push needed to solve the A story\'s main conflict. The B story character might return or their lessons prove vital.', example: 'The treasure hunter, having also found new resolve, returns to aid the protagonist, bringing a crucial piece of knowledge or equipment learned from their own journey.' },
+                        {
+                            id: 'b3-integration', name: 'Integration of A and B Story', description: 'Elements from the B story often provide the key or the final push needed to solve the A story\'s main conflict. The B story character might return or their lessons prove vital.', example: 'The treasure hunter, having also found new resolve, returns to aid the protagonist, bringing a crucial piece of knowledge or equipment learned from their own journey.'
+                        },
                         { id: 'b3-determination', name: 'Renewed Determination', description: 'The protagonist is re-energized and fully committed. They are no longer the same flawed person from Act One; they are ready for the final confrontation, armed with new insight and strength.', example: 'With newfound purpose, the protagonist declares, "We can still stop this. Let\'s go."' }
                     ]
                 },
@@ -501,7 +503,6 @@
             const currentBeatDescription = document.getElementById('current-beat-description');
             const currentBeatExample = document.getElementById('current-beat-example'); /* New element */
             const chapterTitleInput = document.getElementById('chapter-title');
-            // const chapterContentTextarea = document.getElementById('chapter-content'); // No longer needed directly
             const saveButton = document.getElementById('save-button');
             const saveStatusDiv = document.getElementById('save-status');
             const globalNotesTextarea = document.getElementById('global-notes');
@@ -530,6 +531,12 @@
 
             // NEW: Variable to hold Quill editor instance
             let quill = null;
+            let isQuillLoading = false; // Flag to prevent auto-saving during content loading
+
+            // NEW: Debounce variables for auto-save (KEEP FOR MANUAL SAVE DELAY IF NEEDED)
+            let saveTimeout = null;
+            const DEBOUNCE_DELAY = 500; // milliseconds
+
 
             // --- Initialization: Load existing data and render beats ---
 
@@ -567,6 +574,7 @@
                 if (beat.subBeats && beat.subBeats.length > 0) {
                     const subUl = document.createElement('ul');
                     subUl.classList.add('sub-beat-list');
+                    subUl.style.display = 'none'; // Initially hide sub-beats
                     beat.subBeats.forEach(subBeat => {
                         const subLi = document.createElement('li');
                         subLi.classList.add('sub-beat-item');
@@ -580,6 +588,14 @@
                         subUl.appendChild(subLi);
                     });
                     li.appendChild(subUl);
+
+                    // Add an event listener to the main beat to toggle sub-beats visibility
+                    li.addEventListener('click', (e) => {
+                        // Only toggle if the click wasn't on a sub-beat directly
+                        if (e.target === li) {
+                            subUl.style.display = subUl.style.display === 'none' ? 'block' : 'none';
+                        }
+                    });
                 }
             });
 
@@ -627,6 +643,11 @@
                     const prevMainBeatItem = document.querySelector(`.beat-item[data-beat-id="${currentSelectedBeat.mainBeatId}"]`);
                     if (prevMainBeatItem) {
                         prevMainBeatItem.classList.remove('active');
+                        // Hide sub-beats if the main beat is no longer active
+                        const prevSubUl = prevMainBeatItem.querySelector('.sub-beat-list');
+                        if (prevSubUl) {
+                            prevSubUl.style.display = 'none';
+                        }
                     }
                 }
                 if (currentSelectedBeat.subBeatId) {
@@ -644,8 +665,16 @@
                 const activeMainBeatItem = document.querySelector(`.beat-item[data-beat-id="${mainBeatId}"]`);
                 if (activeMainBeatItem) {
                     activeMainBeatItem.classList.add('active');
+                    // Show sub-beats when its main beat is active
+                    const activeSubUl = activeMainBeatItem.querySelector('.sub-beat-list');
+                    if (activeSubUl) {
+                        activeSubUl.style.display = 'block';
+                    }
                 }
+
                 if (subBeatId) {
+                    const inputFieldsGroup = document.getElementById('chapter-input-area').querySelector('.input-fields-group');
+                    const subBeatGuidance = document.getElementById('sub-beat-guidance');
                     const activeSubBeatItem = document.querySelector(`.sub-beat-item[data-sub-beat-id="${subBeatId}"]`);
                     if (activeSubBeatItem) {
                         activeSubBeatItem.classList.add('active');
@@ -655,12 +684,14 @@
                     inputFieldsGroup.style.display = ''; // Show input fields
                     subBeatGuidance.style.display = 'none'; // Hide guidance
                 } else {
-                    // No sub-beat selected, check if main beat has sub-beats
+                    // If a main beat is selected directly (no sub-beat specific selection, or if a main beat without sub-beats is clicked)
                     const mainBeat = beatsData.find(b => b.id === mainBeatId);
                     if (mainBeat && mainBeat.subBeats && mainBeat.subBeats.length > 0) {
+                        // If main beat has sub-beats, show guidance and hide inputs for the main beat itself
                         inputFieldsGroup.style.display = 'none'; // Hide input fields
                         subBeatGuidance.style.display = ''; // Show guidance
                     } else {
+                        // If main beat has no sub-beats, show inputs for the main beat itself
                         inputFieldsGroup.style.display = ''; // Show input fields
                         subBeatGuidance.style.display = 'none'; // Hide guidance
                     }
@@ -695,10 +726,20 @@
                 const savedData = JSON.parse(localStorage.getItem(key) || '{}');
                 chapterTitleInput.value = savedData.title || '';
 
-                // Set Quill editor content (HTML)
+                // Set flag to true before loading content
+                isQuillLoading = true;
+
+                // NEW: Clear existing content from Quill editor before loading new content
                 if (quill) {
+                    quill.setContents([]); // Clears the editor
                     quill.clipboard.dangerouslyPasteHTML(0, savedData.content || '');
                 }
+
+                // Reset flag after a short delay to ensure Quill has processed the paste
+                // The explicit call to debouncedSaveChapterContent() is commented out to disable auto-save after load
+                setTimeout(() => {
+                    isQuillLoading = false;
+                }, 500); // Increased delay from 200ms to 500ms
 
                 saveStatusDiv.textContent = ''; // Clear status on load
             }
@@ -710,8 +751,15 @@
                 }
 
                 // If inputs are hidden, do not save
+                const inputFieldsGroup = document.getElementById('chapter-input-area').querySelector('.input-fields-group');
                 if (inputFieldsGroup.style.display === 'none') {
                     saveStatusDiv.textContent = 'Select a sub-beat to enter notes.';
+                    return;
+                }
+
+                // Do not save if Quill is currently loading content programmatically (still useful for manual save while loading is true)
+                if (isQuillLoading) {
+                    saveStatusDiv.textContent = 'Quill is currently loading, please wait...';
                     return;
                 }
 
@@ -729,6 +777,14 @@
                 };
                 localStorage.setItem(key, JSON.stringify(dataToSave));
                 saveStatusDiv.textContent = `Saved: ${dataToSave.timestamp}`;
+            }
+
+            // Debounced version of saveChapterContent (still defined, but not called for auto-save)
+            function debouncedSaveChapterContent() {
+                clearTimeout(saveTimeout);
+                saveTimeout = setTimeout(() => {
+                    saveChapterContent();
+                }, DEBOUNCE_DELAY);
             }
 
             function saveGlobalNotes() {
@@ -823,7 +879,7 @@
                 updateWordCountDisplay();
             }
 
-            // Modified exportAllContent function for plain text
+            // exportAllContent function for plain text
             function exportAllContent() {
                 let outputText = '';
 
@@ -901,25 +957,26 @@
 
 
             // --- Event Listeners ---
-            saveButton.addEventListener('click', saveChapterContent);
+            saveButton.addEventListener('click', saveChapterContent); // Manual save button still calls directly
             saveGlobalNotesButton.addEventListener('click', saveGlobalNotes);
             toggleBeatsButton.addEventListener('click', toggleBeatsSidebar);
             genreSelect.addEventListener('change', updateWordCountEstimates); // Listen for genre changes
 
-            chapterTitleInput.addEventListener('input', saveChapterContent);
-            // chapterContentTextarea.addEventListener('input', saveChapterContent); // Replaced by Quill event
-            // chapterContentTextarea.addEventListener('input', updateWordCountDisplay); // Replaced by Quill event
-            globalNotesTextarea.addEventListener('input', saveGlobalNotes);
-
-            // NEW: Listen to Quill's text-change event for auto-save and word count update
+            // DISABLED AUTO-SAVE FOR DEBUGGING:
+            // chapterTitleInput.addEventListener('input', debouncedSaveChapterContent);
             if (quill) {
-                quill.on('text-change', () => {
-                    saveChapterContent(); // Auto-save on content change
-                    updateWordCountDisplay(); // Update word count display
+                quill.on('text-change', (delta, oldDelta, source) => {
+                    // Only update word count, auto-save is disabled
+                    updateWordCountDisplay();
+                    // AUTO-SAVE DISABLED FOR DEBUGGING:
+                    if (source === 'user' && !isQuillLoading) {
+                        debouncedSaveChapterContent();
+                    }
                 });
             }
+            globalNotesTextarea.addEventListener('input', saveGlobalNotes);
 
-            // NEW: Export All Button Event Listener
+            // Export All Button Event Listener
             exportAllButton.addEventListener('click', exportAllContent);
         });
     </script>
