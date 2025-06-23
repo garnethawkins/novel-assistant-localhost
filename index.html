@@ -5,8 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Save the Cat! Novel Writer</title>
-    <!-- Include Quill stylesheet -->
-    <link href="https://cdn.jsdelivr.net/npm/quill@2/dist/quill.snow.css" rel="stylesheet" />
+    <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
     <style>
         /* Basic CSS for readability - you'd expand this greatly */
         body {
@@ -324,9 +323,13 @@
                             <button class="ql-list" value="bullet"></button>
                             <select class="ql-align"></select>
                         </span>
-
                         <span class="ql-formats">
-                            <select class="ql-color"></select> </span>
+                            <button class="ql-link"></button>
+                            <button class="ql-image"></button>
+                            <button class="ql-video"></button>
+                        </span>
+                        <span class="ql-formats">
+                            <select class="ql-background"></select> </span>
                     </div>
                     <div id="editor-container">
                     </div>
@@ -334,6 +337,9 @@
 
                     <button id="save-button">Save Progress</button>
                     <div id="save-status"></div>
+
+                    <button id="export-all-button" style="margin-top: 15px; background-color: #28a745;">Export All
+                        Notes</button>
                 </div>
             </div>
 
@@ -347,7 +353,7 @@
         </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/quill@2/dist/quill.js"></script>
+    <script src="https://cdn.quilljs.com/1.3.6/quill.js"></script>
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
@@ -446,7 +452,7 @@
                     id: 'dark-night-of-the-soul', name: '12. Dark Night of the Soul (75-80%)', description: 'Hero has given up. They reflect on their journey and find the truth of the theme.',
                     subBeats: [
                         { id: 'dns-introspection', name: 'Introspection', description: 'Following the "All Is Lost" moment, the protagonist engages in deep self-reflection, processing their failures and the journey\'s true meaning.', example: 'The protagonist recalls the librarian\'s advice ("help yourself first") and realizes their relentless pursuit of external validation has blinded them.' },
-                        { id: 'dns-breakthrough', name: 'Thematic Breakthrough', description: 'A moment of clarity where the protagonist understands the story\'s theme on a deeper, personal level. They realize what they *truly* need to change within themselves.', example: 'They realize true courage isn\'t about brute force, but about self-acceptance and fighting for what\'s right, regardless of personal cost.' },
+                        { id: 'dns-breakthrough', name: 'Thematic Breakthrough', description: 'A moment of clarity where the protagonist understands the story\'s theme on a deeper, personal level. They realize what they *truly* need to learn or change about themselves.', example: 'They realize true courage isn\'t about brute force, but about self-acceptance and fighting for what\'s right, regardless of personal cost.' },
                         { id: 'dns-rebirth', name: 'Rebirth/Transformation (Pre-Action)', description: 'The seeds of the protagonist\'s true transformation are sown. They are not yet fully changed, but the understanding has shifted their perspective, leading to a new resolve.', example: 'A quiet resolve settles over the protagonist. They stand up, ready to face the world not for external gain, but for an internal conviction.' }
                     ]
                 },
@@ -515,6 +521,8 @@
             const genreSelect = document.getElementById('genre-select');
             const wordCountEstimatesDiv = document.getElementById('word-count-estimates');
 
+            // NEW: Export Button
+            const exportAllButton = document.getElementById('export-all-button');
 
             let currentSelectedBeat = { mainBeatId: null, subBeatId: null }; // Track both parent beat and selected sub-beat
             let minWordsForCurrentSubBeat = 0; // Globally declared
@@ -815,6 +823,82 @@
                 updateWordCountDisplay();
             }
 
+            // Modified exportAllContent function for plain text
+            function exportAllContent() {
+                let outputText = '';
+
+                // Header
+                outputText += `NOVEL NOTES EXPORT\n`;
+                outputText += `Export Date: ${new Date().toLocaleString()}\n`;
+                outputText += `========================================\n\n`;
+
+                // 1. Global Notes
+                const globalNotesContent = localStorage.getItem('novelGlobalNotes') || 'No global notes found.';
+                outputText += `GLOBAL NOVEL NOTES\n`;
+                outputText += `----------------------------------------\n`;
+                outputText += `${globalNotesContent}\n\n`;
+                outputText += `========================================\n\n`;
+
+
+                // 2. Beat and Sub-Beat Content
+                beatsData.forEach(mainBeat => {
+                    outputText += `BEAT: ${mainBeat.name}\n`;
+                    outputText += `----------------------------------------\n`;
+
+                    // Get Quill instance to convert HTML content to plain text
+                    const tempQuillDiv = document.createElement('div');
+                    const tempQuill = new Quill(tempQuillDiv); // Create a temporary Quill instance
+
+                    // Check for and include content directly associated with the main beat itself
+                    const mainBeatKey = `beatData-${mainBeat.id}-main`;
+                    const mainBeatData = JSON.parse(localStorage.getItem(mainBeatKey) || '{}');
+                    if (mainBeatData.title || mainBeatData.content) {
+                        outputText += `TITLE: ${mainBeatData.title || 'Untitled Main Beat Notes'}\n`;
+                        // Temporarily set HTML content to get plain text
+                        tempQuill.clipboard.dangerouslyPasteHTML(0, mainBeatData.content || '');
+                        outputText += `CONTENT:\n${tempQuill.getText().trim()}\n\n`;
+                    }
+
+                    if (mainBeat.subBeats && mainBeat.subBeats.length > 0) {
+                        mainBeat.subBeats.forEach(subBeat => {
+                            const key = `beatData-${mainBeat.id}-${subBeat.id}`;
+                            const savedData = JSON.parse(localStorage.getItem(key) || '{}');
+                            const title = savedData.title || subBeat.name; // Use sub-beat name as fallback title
+                            const contentHtml = savedData.content || '';
+
+                            outputText += `SUB-BEAT: ${mainBeat.name} - ${title}\n`;
+                            outputText += `----------------------------------------\n`;
+
+                            // Temporarily set HTML content to get plain text
+                            tempQuill.clipboard.dangerouslyPasteHTML(0, contentHtml);
+                            const plainTextContent = tempQuill.getText().trim(); // Use .trim() to remove leading/trailing whitespace
+
+                            outputText += `CONTENT:\n${plainTextContent || 'No content saved for this sub-beat.'}\n\n`;
+                        });
+                    }
+                    outputText += `\n========================================\n\n`; // Separator for beats
+                });
+
+                // Create a Blob from the plain text string
+                const blob = new Blob([outputText], { type: 'text/plain;charset=utf-8' });
+
+                // Create a link element
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                // Change file extension to .txt
+                a.download = `Novel_Notes_Export_${new Date().toISOString().slice(0, 10)}.txt`;
+
+                // Append the link to the body (not visible) and click it
+                document.body.appendChild(a);
+                a.click();
+
+                // Clean up by revoking the object URL and removing the link
+                document.body.removeChild(a);
+                URL.revokeObjectURL(a.href);
+
+                alert('All your novel notes have been exported to a plain text file!');
+            }
+
 
             // --- Event Listeners ---
             saveButton.addEventListener('click', saveChapterContent);
@@ -834,6 +918,9 @@
                     updateWordCountDisplay(); // Update word count display
                 });
             }
+
+            // NEW: Export All Button Event Listener
+            exportAllButton.addEventListener('click', exportAllContent);
         });
     </script>
 </body>
