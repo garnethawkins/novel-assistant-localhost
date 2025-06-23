@@ -903,6 +903,7 @@
 
                     // Get Quill instance to convert HTML content to plain text
                     const tempQuillDiv = document.createElement('div');
+                    // Give it a unique ID or class if needed, though for temporary use, not strictly necessary
                     const tempQuill = new Quill(tempQuillDiv); // Create a temporary Quill instance
 
                     // Check for and include content directly associated with the main beat itself
@@ -910,6 +911,8 @@
                     const mainBeatData = JSON.parse(localStorage.getItem(mainBeatKey) || '{}');
                     if (mainBeatData.title || mainBeatData.content) {
                         outputText += `TITLE: ${mainBeatData.title || 'Untitled Main Beat Notes'}\n`;
+                        // Clear tempQuill before pasting new content
+                        tempQuill.setContents([]);
                         // Temporarily set HTML content to get plain text
                         tempQuill.clipboard.dangerouslyPasteHTML(0, mainBeatData.content || '');
                         outputText += `CONTENT:\n${tempQuill.getText().trim()}\n\n`;
@@ -925,6 +928,8 @@
                             outputText += `SUB-BEAT: ${mainBeat.name} - ${title}\n`;
                             outputText += `----------------------------------------\n`;
 
+                            // Clear tempQuill before pasting new content
+                            tempQuill.setContents([]);
                             // Temporarily set HTML content to get plain text
                             tempQuill.clipboard.dangerouslyPasteHTML(0, contentHtml);
                             const plainTextContent = tempQuill.getText().trim(); // Use .trim() to remove leading/trailing whitespace
@@ -969,9 +974,9 @@
                     // Only update word count, auto-save is disabled
                     updateWordCountDisplay();
                     // AUTO-SAVE DISABLED FOR DEBUGGING:
-                    if (source === 'user' && !isQuillLoading) {
-                        debouncedSaveChapterContent();
-                    }
+                    // if (source === 'user' && !isQuillLoading) {
+                    //     debouncedSaveChapterContent();
+                    // }
                 });
             }
             globalNotesTextarea.addEventListener('input', saveGlobalNotes);
