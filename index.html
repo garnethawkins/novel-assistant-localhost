@@ -562,11 +562,13 @@
                 li.classList.add('beat-item');
                 li.dataset.beatId = beat.id;
                 li.textContent = beat.name;
+                // Changed: Call selectBeat directly when main beat is clicked.
+                // The visibility of sub-beats will now be handled *only* by selectBeat.
                 li.addEventListener('click', () => {
                     if (beat.subBeats && beat.subBeats.length > 0) {
-                        selectBeat(beat.id, beat.subBeats[0].id);
+                        selectBeat(beat.id, beat.subBeats[0].id); // Select first sub-beat if exists
                     } else {
-                        selectBeat(beat.id, null);
+                        selectBeat(beat.id, null); // Select main beat if no sub-beats
                     }
                 });
                 beatList.appendChild(li);
@@ -582,20 +584,12 @@
                         subLi.dataset.subBeatId = subBeat.id;
                         subLi.textContent = subBeat.name;
                         subLi.addEventListener('click', (e) => {
-                            e.stopPropagation();
+                            e.stopPropagation(); // Prevent click from bubbling to parent li
                             selectBeat(beat.id, subBeat.id);
                         });
                         subUl.appendChild(subLi);
                     });
                     li.appendChild(subUl);
-
-                    // Add an event listener to the main beat to toggle sub-beats visibility
-                    li.addEventListener('click', (e) => {
-                        // Only toggle if the click wasn't on a sub-beat directly
-                        if (e.target === li) {
-                            subUl.style.display = subUl.style.display === 'none' ? 'block' : 'none';
-                        }
-                    });
                 }
             });
 
@@ -638,16 +632,16 @@
             // --- Functions ---
 
             function selectBeat(mainBeatId, subBeatId) {
-                // Deselect previous active beat/sub-beat items
+                // --- Step 1: Hide all sub-beat lists across the entire sidebar ---
+                document.querySelectorAll('.sub-beat-list').forEach(ul => {
+                    ul.style.display = 'none';
+                });
+
+                // --- Deselect previous active beat/sub-beat items (keep this for active class management) ---
                 if (currentSelectedBeat.mainBeatId) {
                     const prevMainBeatItem = document.querySelector(`.beat-item[data-beat-id="${currentSelectedBeat.mainBeatId}"]`);
                     if (prevMainBeatItem) {
                         prevMainBeatItem.classList.remove('active');
-                        // Hide sub-beats if the main beat is no longer active
-                        const prevSubUl = prevMainBeatItem.querySelector('.sub-beat-list');
-                        if (prevSubUl) {
-                            prevSubUl.style.display = 'none';
-                        }
                     }
                 }
                 if (currentSelectedBeat.subBeatId) {
@@ -661,11 +655,11 @@
                 localStorage.setItem('lastActiveMainBeat', mainBeatId);
                 localStorage.setItem('lastActiveSubBeat', subBeatId);
 
-                // Highlight new active items
+                // --- Highlight new active items ---
                 const activeMainBeatItem = document.querySelector(`.beat-item[data-beat-id="${mainBeatId}"]`);
                 if (activeMainBeatItem) {
                     activeMainBeatItem.classList.add('active');
-                    // Show sub-beats when its main beat is active
+                    // --- Step 2: Show the sub-beat list for the currently selected main beat ---
                     const activeSubUl = activeMainBeatItem.querySelector('.sub-beat-list');
                     if (activeSubUl) {
                         activeSubUl.style.display = 'block';
@@ -696,7 +690,6 @@
                         subBeatGuidance.style.display = 'none'; // Hide guidance
                     }
                 }
-
 
                 const mainBeat = beatsData.find(b => b.id === mainBeatId);
                 if (mainBeat) {
@@ -733,6 +726,8 @@
                 if (quill) {
                     quill.setContents([]); // Clears the editor
                     quill.clipboard.dangerouslyPasteHTML(0, savedData.content || '');
+                    // Set selection to the beginning to avoid 'addRange' error
+                    quill.setSelection(0, 0);
                 }
 
                 // Reset flag after a short delay to ensure Quill has processed the paste
@@ -967,13 +962,12 @@
             toggleBeatsButton.addEventListener('click', toggleBeatsSidebar);
             genreSelect.addEventListener('change', updateWordCountEstimates); // Listen for genre changes
 
-            // DISABLED AUTO-SAVE FOR DEBUGGING:
-            // chapterTitleInput.addEventListener('input', debouncedSaveChapterContent);
+            // RE-ENABLED AUTO-SAVE:
+            chapterTitleInput.addEventListener('input', debouncedSaveChapterContent);
             if (quill) {
                 quill.on('text-change', (delta, oldDelta, source) => {
-                    // Only update word count, auto-save is disabled
+                    // Only update word count, auto-save is re-enabled for user input
                     updateWordCountDisplay();
-                    // AUTO-SAVE DISABLED FOR DEBUGGING:
                     if (source === 'user' && !isQuillLoading) {
                         debouncedSaveChapterContent();
                     }
