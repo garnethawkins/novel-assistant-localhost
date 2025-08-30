@@ -878,61 +878,93 @@
             function exportAllContent() {
                 let outputText = '';
 
-                // Header
-                outputText += `NOVEL NOTES EXPORT\n`;
-                outputText += `Export Date: ${new Date().toLocaleString()}\n`;
-                outputText += `========================================\n\n`;
+                // Helper to center text
+                function center(text) {
+                    const width = 60;
+                    if (!text) return '';
+                    let lines = text.split('\n');
+                    return lines.map(line => {
+                        let pad = Math.max(0, Math.floor((width - line.length) / 2));
+                        return ' '.repeat(pad) + line;
+                    }).join('\n');
+                }
 
-                // 1. Global Notes
-                const globalNotesContent = localStorage.getItem('novelGlobalNotes') || 'No global notes found.';
-                outputText += `GLOBAL NOVEL NOTES\n`;
-                outputText += `----------------------------------------\n`;
-                outputText += `${globalNotesContent}\n\n`;
-                outputText += `========================================\n\n`;
+                // Helper to indent paragraphs
+                function indent(text) {
+                    return text.split('\n').map(line => line.trim() ? '    ' + line.trim() : '').join('\n');
+                }
 
+                // Title Page
+                const globalNotesContent = localStorage.getItem('novelGlobalNotes') || '';
+                let novelTitle = '';
+                if (globalNotesContent) {
+                    // Try to get first line as title
+                    novelTitle = globalNotesContent.split('\n')[0].trim();
+                    if (!novelTitle) novelTitle = 'Untitled Novel';
+                } else {
+                    novelTitle = 'Untitled Novel';
+                }
+                outputText += '\n\n' + center(novelTitle.toUpperCase()) + '\n';
+                outputText += center('by [Your Name]') + '\n\n';
+                outputText += center('Exported: ' + new Date().toLocaleString()) + '\n';
+                outputText += '\n' + center('***') + '\n\n';
 
-                // 2. Beat and Sub-Beat Content
-                beatsData.forEach(mainBeat => {
-                    outputText += `BEAT: ${mainBeat.name}\n`;
-                    outputText += `----------------------------------------\n`;
+                // Table of Contents
+                outputText += center('TABLE OF CONTENTS') + '\n\n';
+                beatsData.forEach((mainBeat, i) => {
+                    outputText += `${i + 1}. ${mainBeat.name}\n`;
+                    if (mainBeat.subBeats && mainBeat.subBeats.length > 0) {
+                        mainBeat.subBeats.forEach(subBeat => {
+                            outputText += `    - ${subBeat.name}\n`;
+                        });
+                    }
+                });
+                outputText += '\n' + center('***') + '\n\n';
+
+                // Global Notes Section
+                outputText += center('NOVEL NOTES') + '\n';
+                outputText += center('----------------------------------------') + '\n\n';
+                outputText += indent(globalNotesContent || 'No global notes found.') + '\n\n';
+                outputText += center('***') + '\n\n';
+
+                // Beat and Sub-Beat Content as Chapters
+                beatsData.forEach((mainBeat, i) => {
+                    // Chapter header
+                    outputText += center(`CHAPTER ${i + 1}`) + '\n';
+                    outputText += center(mainBeat.name.toUpperCase()) + '\n';
+                    outputText += center('----------------------------------------') + '\n\n';
 
                     // Get Quill instance to convert HTML content to plain text
                     const tempQuillDiv = document.createElement('div');
-                    // Give it a unique ID or class if needed, though for temporary use, not strictly necessary
-                    const tempQuill = new Quill(tempQuillDiv); // Create a temporary Quill instance
+                    const tempQuill = new Quill(tempQuillDiv);
 
-                    // Check for and include content directly associated with the main beat itself
+                    // Main Beat Content
                     const mainBeatKey = `beatData-${mainBeat.id}-main`;
                     const mainBeatData = JSON.parse(localStorage.getItem(mainBeatKey) || '{}');
                     if (mainBeatData.title || mainBeatData.content) {
-                        outputText += `TITLE: ${mainBeatData.title || 'Untitled Main Beat Notes'}\n`;
-                        // Clear tempQuill before pasting new content
+                        outputText += center(mainBeatData.title || 'Untitled Main Beat Notes') + '\n\n';
                         tempQuill.setContents([]);
-                        // Temporarily set HTML content to get plain text
                         tempQuill.clipboard.dangerouslyPasteHTML(0, mainBeatData.content || '');
-                        outputText += `CONTENT:\n${tempQuill.getText().trim()}\n\n`;
+                        outputText += indent(tempQuill.getText().trim()) + '\n\n';
                     }
 
+                    // Sub-Beats as sub-chapters/sections
                     if (mainBeat.subBeats && mainBeat.subBeats.length > 0) {
-                        mainBeat.subBeats.forEach(subBeat => {
+                        mainBeat.subBeats.forEach((subBeat, j) => {
                             const key = `beatData-${mainBeat.id}-${subBeat.id}`;
                             const savedData = JSON.parse(localStorage.getItem(key) || '{}');
-                            const title = savedData.title || subBeat.name; // Use sub-beat name as fallback title
+                            const title = savedData.title || subBeat.name;
                             const contentHtml = savedData.content || '';
 
-                            outputText += `SUB-BEAT: ${mainBeat.name} - ${title}\n`;
-                            outputText += `----------------------------------------\n`;
-
-                            // Clear tempQuill before pasting new content
+                            outputText += center(`Section ${i + 1}.${j + 1}: ${title}`) + '\n';
+                            outputText += center('----------------------------------------') + '\n';
                             tempQuill.setContents([]);
-                            // Temporarily set HTML content to get plain text
                             tempQuill.clipboard.dangerouslyPasteHTML(0, contentHtml);
-                            const plainTextContent = tempQuill.getText().trim(); // Use .trim() to remove leading/trailing whitespace
-
-                            outputText += `CONTENT:\n${plainTextContent || 'No content saved for this sub-beat.'}\n\n`;
+                            const plainTextContent = tempQuill.getText().trim();
+                            outputText += indent(plainTextContent || 'No content saved for this section.') + '\n\n';
                         });
                     }
-                    outputText += `\n========================================\n\n`; // Separator for beats
+                    outputText += center('***') + '\n\n'; // Page break
                 });
 
                 // Create a Blob from the plain text string
@@ -941,18 +973,14 @@
                 // Create a link element
                 const a = document.createElement('a');
                 a.href = URL.createObjectURL(blob);
-                // Change file extension to .txt
-                a.download = `Novel_Notes_Export_${new Date().toISOString().slice(0, 10)}.txt`;
+                a.download = `${novelTitle.replace(/[^a-zA-Z0-9]/g, '_')}_Export_${new Date().toISOString().slice(0, 10)}.txt`;
 
-                // Append the link to the body (not visible) and click it
                 document.body.appendChild(a);
                 a.click();
-
-                // Clean up by revoking the object URL and removing the link
                 document.body.removeChild(a);
                 URL.revokeObjectURL(a.href);
 
-                alert('All your novel notes have been exported to a plain text file!');
+                alert('Your novel notes have been exported in book format!');
             }
 
 
