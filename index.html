@@ -874,213 +874,85 @@
                 updateWordCountDisplay();
             }
 
-            // exportAllContent function for text export with improved formatting and chapter grouping
+            // exportAllContent function for plain text
             function exportAllContent() {
                 let outputText = '';
 
-                // Helper to center text
-                function center(text) {
-                    const width = 60;
-                    if (!text) return '';
-                    let lines = text.split('\n');
-                    return lines.map(line => {
-                        let pad = Math.max(0, Math.floor((width - line.length) / 2));
-                        return ' '.repeat(pad) + line;
-                    }).join('\n');
-                }
+                // Header
+                outputText += `NOVEL NOTES EXPORT\n`;
+                outputText += `Export Date: ${new Date().toLocaleString()}\n`;
+                outputText += `========================================\n\n`;
 
-                // Helper to indent paragraphs
-                function indent(text) {
-                    return text.split('\n').map(line => line.trim() ? '    ' + line.trim() : '').join('\n');
-                }
+                // 1. Global Notes
+                const globalNotesContent = localStorage.getItem('novelGlobalNotes') || 'No global notes found.';
+                outputText += `GLOBAL NOVEL NOTES\n`;
+                outputText += `----------------------------------------\n`;
+                outputText += `${globalNotesContent}\n\n`;
+                outputText += `========================================\n\n`;
 
-                // New: Custom HTML-to-Plain-Text converter
-                // New: Custom HTML-to-Plain-Text converter
-                function convertHtmlToText(html) {
-                    if (!html) return '';
 
-                    // Create a temporary div to parse the HTML
-                    const tempDiv = document.createElement('div');
-                    tempDiv.innerHTML = html;
+                // 2. Beat and Sub-Beat Content
+                beatsData.forEach(mainBeat => {
+                    outputText += `BEAT: ${mainBeat.name}\n`;
+                    outputText += `----------------------------------------\n`;
 
-                    // A stack to handle nesting (e.g., bold inside italics)
-                    let plainText = '';
-                    const output = [];
+                    // Get Quill instance to convert HTML content to plain text
+                    const tempQuillDiv = document.createElement('div');
+                    // Give it a unique ID or class if needed, though for temporary use, not strictly necessary
+                    const tempQuill = new Quill(tempQuillDiv); // Create a temporary Quill instance
 
-                    function processNodes(nodes) {
-                        nodes.forEach(node => {
-                            if (node.nodeType === Node.TEXT_NODE) {
-                                // Add the text content directly, preserving white space
-                                output.push(node.textContent);
-                            } else if (node.nodeType === Node.ELEMENT_NODE) {
-                                const tag = node.tagName.toLowerCase();
-
-                                switch (tag) {
-                                    case 'strong':
-                                    case 'b':
-                                        output.push('**');
-                                        processNodes(Array.from(node.childNodes));
-                                        output.push('**');
-                                        break;
-                                    case 'em':
-                                    case 'i':
-                                        output.push('*');
-                                        processNodes(Array.from(node.childNodes));
-                                        output.push('*');
-                                        break;
-                                    case 'u':
-                                        output.push('_');
-                                        processNodes(Array.from(node.childNodes));
-                                        output.push('_');
-                                        break;
-                                    case 'p':
-                                        // Handle paragraphs:
-                                        // 1. Add a leading newline unless it's the very beginning.
-                                        // 2. Process its children.
-                                        // 3. Add a trailing newline.
-                                        if (output.length > 0) {
-                                            output.push('\n');
-                                        }
-                                        processNodes(Array.from(node.childNodes));
-                                        output.push('\n');
-                                        break;
-                                    case 'br':
-                                        // A simple line break
-                                        output.push('\n');
-                                        break;
-                                    case 'ul':
-                                    case 'ol':
-                                        // Handle list items
-                                        processNodes(Array.from(node.childNodes));
-                                        break;
-                                    case 'li':
-                                        output.push('* ');
-                                        processNodes(Array.from(node.childNodes));
-                                        output.push('\n');
-                                        break;
-                                    default:
-                                        // For all other tags, just process their content
-                                        processNodes(Array.from(node.childNodes));
-                                        break;
-                                }
-                            }
-                        });
-                    }
-
-                    processNodes(Array.from(tempDiv.childNodes));
-                    plainText = output.join('');
-
-                    // Normalize multiple newlines to a single paragraph break
-                    plainText = plainText.replace(/\n\s*\n/g, '\n\n');
-
-                    // Remove any newlines at the start or end
-                    return plainText.trim();
-                }
-
-                // New: Consolidate content by chapter title
-                const chapters = {};
-
-                beatsData.forEach((mainBeat) => {
-                    // Use the main beat's name as the chapter title
-                    const chapterTitle = mainBeat.name;
-
-                    // Initialize chapter if it doesn't exist
-                    if (!chapters[chapterTitle]) {
-                        chapters[chapterTitle] = {
-                            sections: [],
-                            beatId: mainBeat.id, // Store the main beat ID for sorting later
-                        };
-                    }
-
-                    // Add main beat content as a section
+                    // Check for and include content directly associated with the main beat itself
                     const mainBeatKey = `beatData-${mainBeat.id}-main`;
                     const mainBeatData = JSON.parse(localStorage.getItem(mainBeatKey) || '{}');
-                    chapters[chapterTitle].sections.push({
-                        title: mainBeatData.title || mainBeat.name,
-                        contentHtml: mainBeatData.content || '',
-                    });
+                    if (mainBeatData.title || mainBeatData.content) {
+                        outputText += `TITLE: ${mainBeatData.title || 'Untitled Main Beat Notes'}\n`;
+                        // Clear tempQuill before pasting new content
+                        tempQuill.setContents([]);
+                        // Temporarily set HTML content to get plain text
+                        tempQuill.clipboard.dangerouslyPasteHTML(0, mainBeatData.content || '');
+                        outputText += `CONTENT:\n${tempQuill.getText().trim()}\n\n`;
+                    }
 
-                    // Add sub-beat content as sections
                     if (mainBeat.subBeats && mainBeat.subBeats.length > 0) {
-                        mainBeat.subBeats.forEach((subBeat) => {
+                        mainBeat.subBeats.forEach(subBeat => {
                             const key = `beatData-${mainBeat.id}-${subBeat.id}`;
                             const savedData = JSON.parse(localStorage.getItem(key) || '{}');
-                            chapters[chapterTitle].sections.push({
-                                title: savedData.title || subBeat.name,
-                                contentHtml: savedData.content || '',
-                            });
+                            const title = savedData.title || subBeat.name; // Use sub-beat name as fallback title
+                            const contentHtml = savedData.content || '';
+
+                            outputText += `SUB-BEAT: ${mainBeat.name} - ${title}\n`;
+                            outputText += `----------------------------------------\n`;
+
+                            // Clear tempQuill before pasting new content
+                            tempQuill.setContents([]);
+                            // Temporarily set HTML content to get plain text
+                            tempQuill.clipboard.dangerouslyPasteHTML(0, contentHtml);
+                            const plainTextContent = tempQuill.getText().trim(); // Use .trim() to remove leading/trailing whitespace
+
+                            outputText += `CONTENT:\n${plainTextContent || 'No content saved for this sub-beat.'}\n\n`;
                         });
                     }
+                    outputText += `\n========================================\n\n`; // Separator for beats
                 });
 
-                // Sort chapters by their original beat order
-                const sortedChapterTitles = Object.keys(chapters).sort((a, b) => {
-                    const beatA = beatsData.find(beat => beat.name === a);
-                    const beatB = beatsData.find(beat => beat.name === b);
-                    return beatsData.indexOf(beatA) - beatsData.indexOf(beatB);
-                });
-
-                // Title Page (same as your original code)
-                const globalNotesContent = localStorage.getItem('novelGlobalNotes') || '';
-                let novelTitle = '';
-                if (globalNotesContent) {
-                    novelTitle = globalNotesContent.split('\n')[0].trim();
-                    if (!novelTitle) novelTitle = 'Untitled Novel';
-                } else {
-                    novelTitle = 'Untitled Novel';
-                }
-                outputText += '\n\n' + center(novelTitle.toUpperCase()) + '\n';
-                outputText += center('by [Your Name]') + '\n\n';
-                outputText += center('Exported: ' + new Date().toLocaleString()) + '\n';
-                outputText += '\n' + center('***') + '\n\n';
-
-                // Table of Contents (updated to use the consolidated chapters)
-                outputText += center('TABLE OF CONTENTS') + '\n\n';
-                sortedChapterTitles.forEach((title, i) => {
-                    outputText += `${i + 1}. ${title}\n`;
-                    const chapter = chapters[title];
-                    chapter.sections.forEach(section => {
-                        outputText += `    - ${section.title}\n`;
-                    });
-                });
-                outputText += '\n' + center('***') + '\n\n';
-
-                // Global Notes Section (same as your original code)
-                outputText += center('NOVEL NOTES') + '\n';
-                outputText += center('----------------------------------------') + '\n\n';
-                outputText += indent(globalNotesContent || 'No global notes found.') + '\n\n';
-                outputText += center('***') + '\n\n';
-
-                // Loop through the sorted chapters to create the final output
-                sortedChapterTitles.forEach((chapterTitle, i) => {
-                    const chapter = chapters[chapterTitle];
-
-                    // Chapter header
-                    outputText += center(`BEAT ${i + 1}`) + '\n';
-                    outputText += center(chapterTitle.toUpperCase()) + '\n';
-                    outputText += center('----------------------------------------') + '\n\n';
-
-                    // Add each section's content
-                    chapter.sections.forEach(section => {
-                        outputText += center(section.title.toUpperCase()) + '\n\n';
-                        const plainTextContent = convertHtmlToText(section.contentHtml);
-                        outputText += indent(plainTextContent || 'No content saved for this section.') + '\n\n';
-                    });
-
-                    outputText += center('***') + '\n\n'; // Page break
-                });
-
-                // Create and download the file (same as your original code)
+                // Create a Blob from the plain text string
                 const blob = new Blob([outputText], { type: 'text/plain;charset=utf-8' });
+
+                // Create a link element
                 const a = document.createElement('a');
                 a.href = URL.createObjectURL(blob);
-                a.download = `${novelTitle.replace(/[^a-zA-Z0-9]/g, '_')}_Export_${new Date().toISOString().slice(0, 10)}.txt`;
+                // Change file extension to .txt
+                a.download = `Novel_Notes_Export_${new Date().toISOString().slice(0, 10)}.txt`;
+
+                // Append the link to the body (not visible) and click it
                 document.body.appendChild(a);
                 a.click();
+
+                // Clean up by revoking the object URL and removing the link
                 document.body.removeChild(a);
                 URL.revokeObjectURL(a.href);
 
-                alert('Your novel notes have been exported in book format!');
+                alert('All your novel notes have been exported to a plain text file!');
             }
 
 
