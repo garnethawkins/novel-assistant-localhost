@@ -1048,23 +1048,32 @@
                 // Global Notes Section (same as your original code)
                 outputText += center('NOVEL NOTES') + '\n';
                 outputText += center('----------------------------------------') + '\n\n';
-                outputText += indent(globalNotesContent || 'No global notes found.') + '\n\n';
+                outputText += indent(globalNotesContent 
+                || 
+                //'No global notes found.'
+                ''
+            ) + '\n\n';
                 outputText += center('***') + '\n\n';
 
                 // Loop through the sorted chapters to create the final output
                 sortedChapterTitles.forEach((chapterTitle, i) => {
                     const chapter = chapters[chapterTitle];
 
-                    // Chapter header
-                    outputText += center(`BEAT ${i + 1}`) + '\n';
-                    outputText += center(chapterTitle.toUpperCase()) + '\n';
-                    outputText += center('----------------------------------------') + '\n\n';
+                    // // Chapter header
+                    // outputText += center(`BEAT ${i + 1}`) + '\n';
+                    // outputText += center(chapterTitle.toUpperCase()) + '\n';
+                    // outputText += center('----------------------------------------') + '\n\n';
 
                     // Add each section's content
                     chapter.sections.forEach(section => {
                         outputText += center(section.title.toUpperCase()) + '\n\n';
                         const plainTextContent = convertHtmlToText(section.contentHtml);
-                        outputText += indent(plainTextContent || 'No content saved for this section.') + '\n\n';
+                        outputText += indent(
+                            plainTextContent 
+                            || 
+                            //'No content saved for this section.'
+                            ''
+                        ) + '\n\n';
                     });
 
                     outputText += center('***') + '\n\n'; // Page break
