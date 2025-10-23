@@ -910,10 +910,13 @@
                                         const style = index === 0 ? "firstPara" : "normalPara";
                                         content.push(new Paragraph({ text: paraText, style: style }));
                                     });
+                                    content.push(new Paragraph({ children: [new PageBreak()] }));
                                 }
+                                
                             });
+                            
                         }
-                        content.push(new Paragraph({ children: [new PageBreak()] }));
+                        
 
                     });
                     
