@@ -1,0 +1,6 @@
+if (savedData.title || contentHtml) {
+                                    content.push(new Paragraph({ style: "sceneBreak", children: [new TextRun("***")] }));
+                  					remove  ${mainBeat.name} - ${subBeat.name} replace with blank space                  
+content.push(new Paragraph({ text: savedData.title || `${mainBeat.name} - ${subBeat.name}`, heading: HeadingLevel.HEADING_2 }));
+
+second bug report- italics formatting being rewritten to default font
