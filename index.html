@@ -899,7 +899,7 @@
                                 const contentHtml = savedData.content || '';
                                 if (savedData.title || contentHtml) {
                                     content.push(new Paragraph({ style: "sceneBreak", children: [new TextRun("***")] }));
-                                    content.push(new Paragraph({ text: savedData.title || `${mainBeat.name} - ${subBeat.name}`, heading: HeadingLevel.HEADING_2 }));
+                                    content.push(new Paragraph({ text: savedData.title || ``, heading: HeadingLevel.HEADING_2 }));
 
                                     tempQuill.setContents([]);
                                     tempQuill.clipboard.dangerouslyPasteHTML(0, contentHtml);
